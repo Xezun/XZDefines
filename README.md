@@ -1,9 +1,11 @@
 # XZDefines
 
-[![CI Status](https://img.shields.io/travis/xezun/XZDefines.svg?style=flat)](https://travis-ci.org/xezun/XZDefines)
+[![CI Status](https://img.shields.io/badge/Build-pass-brightgreen.svg)](https://cocoapods.org/pods/XZDefines)
 [![Version](https://img.shields.io/cocoapods/v/XZDefines.svg?style=flat)](https://cocoapods.org/pods/XZDefines)
 [![License](https://img.shields.io/cocoapods/l/XZDefines.svg?style=flat)](https://cocoapods.org/pods/XZDefines)
 [![Platform](https://img.shields.io/cocoapods/p/XZDefines.svg?style=flat)](https://cocoapods.org/pods/XZDefines)
+
+XZDefines 是 XZKit 基础定义部分，包含一些开发常用的基础函数、宏定义和运行时基础函数等。
 
 ## Example
 

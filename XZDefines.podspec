@@ -10,7 +10,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'XZDefines'
-  s.version          = '1.0.0'
+  s.version          = '1.1.0'
   s.summary          = 'XZKit 的基础部分'
 
 # This description is used to generate tags and improve search results.
@@ -40,7 +40,7 @@ Pod::Spec.new do |s|
     ss.source_files        = 'XZDefines/Code/**/*.{h,m}'
   end
   
-  s.subspec 'Debug' do |ss|
+  s.subspec 'DEBUG' do |ss|
     ss.dependency 'XZDefines/Code'
     ss.pod_target_xcconfig = { 'GCC_PREPROCESSOR_DEFINITIONS' => 'XZ_DEBUG=1' }
   end
