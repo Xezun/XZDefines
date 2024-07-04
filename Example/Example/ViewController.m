@@ -8,6 +8,8 @@
 #import "ViewController.h"
 @import XZDefines;
 
+@import ObjectiveC;
+
 @interface ViewController ()
 @end
 
@@ -20,6 +22,8 @@
     
     NSURL *url = XZOpt([NSURL URLWithString:@"mocoa://ios.com"], @"https://xezun.com/1");
     NSLog(@"url: %@", url);
+    
+    
 }
 
 
