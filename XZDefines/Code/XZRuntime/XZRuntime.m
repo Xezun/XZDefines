@@ -206,8 +206,10 @@ BOOL xz_objc_class_copyMethod(Class source, SEL sourceSelector, Class target, SE
         targetSelector = sourceSelector;
     }
     
-    if (xz_objc_class_getInstanceMethod(target, targetSelector) != nil) {
-        return NO;
+    if ([target instancesRespondToSelector:targetSelector]) {
+        if (xz_objc_class_getInstanceMethod(target, targetSelector) != nil) {
+            return NO;
+        }
     }
     
     Method       const mtd = class_getInstanceMethod(source, sourceSelector);
@@ -228,11 +230,13 @@ NSInteger xz_objc_class_copyMethods(Class source, Class target) {
             if (oldMethods[i] == method) return YES;
             if (method_getName(oldMethods[i]) == method_getName(method)) return YES;
         }
-        result += 1;
+        // 复制方法
         SEL          const sel = method_getName(method);
         IMP          const imp = method_getImplementation(method);
         const char * const enc = method_getTypeEncoding(method);
-        class_addMethod(target, sel, imp, enc);
+        if (class_addMethod(target, sel, imp, enc)) {
+            result += 1;
+        }
         return YES;
     });
     free(oldMethods);

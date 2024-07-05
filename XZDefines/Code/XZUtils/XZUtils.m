@@ -19,7 +19,7 @@ NSComparisonResult XZVersionStringCompare(NSString *version1, NSString *version2
     }
     NSArray<NSString *> * const subversions1 = [version1 componentsSeparatedByString:@"."];
     NSArray<NSString *> * const subversions2 = [version2 componentsSeparatedByString:@"."];
-    for (NSInteger i = 0; i < subversions2.count; i++) {
+    for (NSInteger i = 0; i < subversions1.count; i++) {
         if (i < subversions2.count) {
             switch ([subversions1[0] compare:subversions2[0]]) {
                 case NSOrderedSame:
@@ -37,4 +37,12 @@ NSComparisonResult XZVersionStringCompare(NSString *version1, NSString *version2
 }
 
 
+#import <sys/time.h>
 
+NSTimeInterval XZTimestamp(void) {
+    struct timeval aTime;
+    gettimeofday(&aTime, NULL);
+    NSTimeInterval sec = aTime.tv_sec;
+    NSTimeInterval u_sec = aTime.tv_usec * 1.0e-6L;
+    return (sec + u_sec);
+}

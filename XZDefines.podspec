@@ -64,12 +64,10 @@ Pod::Spec.new do |s|
     end
   end
   
-  s.defineSubspec 'XZCmp',        [];
+  s.defineSubspec 'XZEmpty',      [];
   s.defineSubspec 'XZDefer',      ['XZDefines/XZMacro'];
   s.defineSubspec 'XZMacro',      [];
-  s.defineSubspec 'XZOpt',        ['XZDefines/XZCmp'];
   s.defineSubspec 'XZRuntime',    [];
-  s.defineSubspec 'XZTimestamp',  [];
   s.defineSubspec 'XZUtils',      [];
 
 end

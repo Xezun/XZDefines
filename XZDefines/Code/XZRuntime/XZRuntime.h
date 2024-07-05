@@ -94,16 +94,21 @@ FOUNDATION_EXPORT Class xz_objc_createClass(Class superClass, NS_NOESCAPE XZRunt
 #pragma mark - 添加方法
 
 
-/// 复制方法。将类 cls 的方法 source 复制为 target 方法。
-/// @discussion 如果 target 自身已存在 targetSelector 方法，则不复制。
+/// 复制方法：将类 source 的方法 sourceSelector 复制为类 target 的 targetSelector 方法。
+/// @discussion
+/// 如果 target 自身已存在 targetSelector 方法，则不复制，返回 NO 值。
+/// @discussion
+/// 参数 target 和 targetSelector 不能同时为 nil 值，否则返回 NO 值。
 /// @param source 被复制方法的类
 /// @param sourceSelector 被复制方法的方法名
-/// @param target 待添加方法的类
+/// @param target 待添加方法的类，如果为 nil 则表示使用 source
 /// @param targetSelector 待添加的方法名，为 nil 则使用 sourceSelector
 /// @returns 是否复制成功
 FOUNDATION_EXPORT BOOL xz_objc_class_copyMethod(Class source, SEL sourceSelector, Class _Nullable target, SEL _Nullable targetSelector);
 
 /// 将 source 自身的所有实例方法都复制到 target 上，不包括 super 的方法。
+/// @discussion
+/// 复制会跳过 target 自身存在的同名方法，同样不包括 super 的方法。
 /// @param source 被复制方法的类
 /// @param target 待添加方法的类
 /// @return 被成功复制的方法的数量
