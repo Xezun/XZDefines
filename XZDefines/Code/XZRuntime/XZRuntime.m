@@ -117,31 +117,14 @@ BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source,
         Method exchangeMethod = class_getInstanceMethod(source, exchange);
         if (aClass != source) {
             // 将待交换的方法添加到自身，要先判断自身是否已有这个方法。
+            // 虽然可以通过重命名的方法，将方法给 aClass 添加上，
+            // 但是这样可能导致调用原方法的代码失效，因为原方法已经被换到重命名后的方法上。
+            // 所以这里返回 NO 由开发者处理此问题。
             if ([aClass instancesRespondToSelector:exchange]) {
-                // 重名命名规则：
-                // 第一个 __xz_exchange_method
-                // 第二个 __xz_exchange_0_method 以此类推
-                NSString * const prefix = @"__xz_exchange_";
-                
-                NSString * oldName = NSStringFromSelector(selector);
-                NSString * newName = nil;
-                NSInteger index = 0;
-                
-                if ([oldName hasPrefix:prefix]) {
-                    oldName = [oldName substringFromIndex:prefix.length];
-                    newName = [NSString stringWithFormat:@"%@%ld_%@", prefix, index++, oldName];
-                } else {
-                    newName = [NSString stringWithFormat:@"%@%@", prefix, oldName];
-                }
-                
-                exchange = sel_registerName(newName.UTF8String);
-                while ([aClass instancesRespondToSelector:exchange]) {
-                    newName = [NSString stringWithFormat:@"%@%ld_%@", prefix, index++, oldName];
-                    exchange = sel_registerName(newName.UTF8String);
-                }
+                return NO;
             }
             
-            // exchange 已经是新的方法名
+            // 将 exchange 添加到 aClass 上
             if (!class_addMethod(aClass, exchange, method_getImplementation(exchangeMethod), method_getTypeEncoding(exchangeMethod))) {
                 return NO;
             }
