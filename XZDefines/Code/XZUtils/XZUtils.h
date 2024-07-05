@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 FOUNDATION_EXPORT NSComparisonResult XZVersionStringCompare(NSString * _Nullable version1, NSString * _Nullable version2);
 
 
-/// 获取当前的时间戳。
+/// 获取当前的时间戳。使用 `gettimeofday` 函数，不会创建 `NSDate` 对象。
 FOUNDATION_EXPORT NSTimeInterval XZTimestamp(void);
 
 NS_ASSUME_NONNULL_END
