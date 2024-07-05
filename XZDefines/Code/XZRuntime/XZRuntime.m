@@ -74,7 +74,7 @@ void xz_objc_class_exchangeInstanceMethods(Class aClass, SEL selector1, SEL sele
     method_exchangeImplementations(method1, method2);
 }
 
-BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source, SEL _Nullable creation, SEL _Nullable override, SEL _Nullable exchange) {
+BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source, SEL _Nullable creation, SEL _Nullable override, IMP (^exchange)(SEL selector)) {
     if (aClass == Nil || selector == Nil) {
         return NO;
     }
@@ -142,6 +142,86 @@ BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source,
     IMP         const imp = method_getImplementation(mtd);
     const char *const enc = method_getTypeEncoding(mtd);
     return class_addMethod(aClass, selector, imp, enc);
+}
+
+const char *xz_objc_class_getInstanceMethodTypeEncoding(Class aClass, SEL selector) {
+    if (aClass == Nil || selector == nil) {
+        return NULL;
+    }
+    Method method = class_getInstanceMethod(aClass, selector);
+    if (method == nil) {
+        return NULL;
+    }
+    return method_getTypeEncoding(method);
+}
+
+BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *encoding, id _Nullable creation, id _Nullable override, id (^ _Nullable exchange)(SEL exchange)) {
+    if (aClass == Nil || selector == Nil) {
+        return NO;
+    }
+    
+    if (creation == nil && override == nil && exchange == nil) {
+        return NO;
+    }
+    
+    // 方法已实现
+    if ([aClass instancesRespondToSelector:selector]) {
+        Method const oldMethod = xz_objc_class_getInstanceMethod(aClass, selector);
+        
+        // 当前类没有这个方法，说明方法由父类实现，重写方法。
+        if (oldMethod == NULL) {
+            if (override == NULL) {
+                return NO;
+            }
+            
+            IMP const overrideIMP = imp_implementationWithBlock(override);
+            if (overrideIMP == nil) {
+                return NO;
+            }
+            return class_addMethod(aClass, selector, overrideIMP, encoding);
+        }
+        
+        // 方法已自身实现，交换方法
+        if (exchange == nil) {
+            return NO;
+        }
+        
+        // 动态生成一个可以用于添加交换方法的方法名
+        SEL exchangeSEL = nil;
+        NSString * const baseName = NSStringFromSelector(selector);
+        NSInteger index = 0;
+        do {
+            NSString *newName = [NSString stringWithFormat:@"__xz_exchange_%ld_%@", (long)index++, baseName];
+            exchangeSEL = sel_registerName(newName.UTF8String);
+        } while ([aClass instancesRespondToSelector:exchangeSEL]);
+        
+        // 生成方法 IMP
+        id const exchangeBlock = exchange(exchangeSEL);
+        if (exchangeBlock == nil) {
+            return NO;
+        }
+        IMP const exchangeIMP = imp_implementationWithBlock(exchangeBlock);
+        if (exchangeIMP == nil) {
+            return NO;
+        }
+        
+        // 将 exchange 添加到 aClass 上
+        if (!class_addMethod(aClass, exchangeSEL, exchangeIMP, encoding)) {
+            return NO;
+        }
+        
+        // 交换方法
+        Method exchangeMethod = class_getInstanceMethod(aClass, exchangeSEL);
+        method_exchangeImplementations(oldMethod, exchangeMethod);
+        return YES;
+    }
+    
+    // 方法未实现，添加新方法
+    if (creation == nil) {
+        return NO;
+    }
+    IMP const imp = imp_implementationWithBlock(creation);
+    return class_addMethod(aClass, selector, imp, encoding);
 }
 
 #pragma mark - 创建类

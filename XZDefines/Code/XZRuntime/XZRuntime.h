@@ -66,9 +66,48 @@ FOUNDATION_EXPORT void xz_objc_class_exchangeInstanceMethods(Class aClass, SEL s
 /// @param source 提供方法 IMP 的类，如果为 nil 值，则使用自身，且不能与 creation 同时为 nil 值。
 /// @param creation 如果待添加的方法为新方法时，将选择此方法的 IMP 为新方法的 IMP 使用，如果为空，则使用与待添加方法相同名称的方法。
 /// @param override 如果待添加的方法已由父类实现，将选择此方法的 IMP 为新方法的 IMP 使用。
-/// @param exchange 如果待添加的方法已由自身实现，将选择此方法的 IMP 与原方法交换 IMP 使用。
+/// @param exchange 如果待添加的方法已由自身实现，那么想将此方法复制到 aClass 上，然后再交换 IMP 使用；如果 aClass 已有 exchange 方法，则添加方法失败。
 FOUNDATION_EXPORT BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source, SEL _Nullable creation, SEL _Nullable override, SEL _Nullable exchange);
 
+/// 获取 aClass 实例方法的 type-encoding 字符串。
+/// @param aClass 获取的对象的类。
+/// @param selector 获取的方法名。
+FOUNDATION_EXPORT const char * _Nullable xz_objc_class_getInstanceMethodTypeEncoding(Class aClass, SEL selector);
+
+/// 通过块函数给对象添加方法。
+/// @discussion
+/// 块函数形式如 `block(self, args...)` 。
+///
+/// @code
+/// // 先在任意类上定义一个待添加的方法，用于获取 type-encoding ，当然熟悉规则，也可以手写。
+/// const char *encoding = xz_objc_class_getInstanceMethodTypeEncoding([AnyClass class], @selector(sayHello:));
+/// // 向 Foobar 上添加 -sayHello: 方法。
+/// xz_objc_class_addMethodWithBlock([Foobar class], @selector(sayHello:), encoding, ^NSString *(Foobar *self, NSString *name) {
+///     return [NSString stringWithFormat:@"Hello %@!", name];
+/// }, ^NSString *(Foobar *self, NSString *name) {
+///     struct objc_super super = {
+///         .receiver = self,
+///         .super_class = class_getSuperclass(object_getClass(self))
+///     };
+///     // 调用父类方法，相当于 [super sayHello:name]
+///     NSString *word = ((NSString *(*)(struct objc_super *, SEL, NSString *))objc_msgSendSuper)(&super, @selector(sayHello:), name);
+///     return [NSString stringWithFormat:@"override %@", word];
+/// }, ^id _Nonnull(SEL  _Nonnull original) {
+///     return ^NSString *(Foobar *self, NSString *name) {
+///         // 调用原始方法，相当于 [self exchange_sayHello:name]
+///         NSString *word = ((NSString *(*)(Foobar *, SEL, NSString *))objc_msgSend)(self, original, name);
+///         return [NSString stringWithFormat:@"exchange %@", word];
+///     };
+/// });
+/// @endcode
+///
+/// @param aClass 要添加方法的类。
+/// @param selector 要添加的方法名。
+/// @param encoding 方法 type-encoding 。
+/// @param creation 如果待添加的方法未创建，则使用此块函数作为 IMP 新建方法。
+/// @param override 如果待添加的方法已由超类实现，则使用此块函数作为 IMP 重写方法。
+/// @param exchange 如果待添加的方法已由自身实现，则使用此块函数返回的块函数构造 IMP 替换原方法，块函数的参数 original 为替换后原方法的方法名。
+FOUNDATION_EXPORT BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *encoding, id _Nullable creation, id _Nullable override, id (^ _Nullable exchange)(SEL original));
 
 #pragma mark - 创建类
 
