@@ -28,13 +28,13 @@ FOUNDATION_EXPORT Method _Nullable xz_objc_class_getInstanceMethod(Class const a
 
 /// 遍历类实例对象的方法，不包括父类的方法。
 /// @param aClass 类。
-/// @param block 遍历所用的 block 块，返回 NO 遍历终止。
-FOUNDATION_EXPORT void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^block)(Method method, NSInteger index));
+/// @param enumerator 遍历所用的 block 块，返回 NO 遍历终止。
+FOUNDATION_EXPORT void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^enumerator)(Method method, NSInteger index));
 
 /// 遍历类实例对象的变量，不包括父类。
 /// @param aClass 类。
-/// @param block 遍历所用的 block 。
-FOUNDATION_EXPORT void xz_objc_class_enumerateInstanceVariables(Class aClass, void (^block)(Ivar ivar));
+/// @param enumerator 遍历所用的 block 块，返回 NO 遍历终止。
+FOUNDATION_EXPORT void xz_objc_class_enumerateInstanceVariables(Class aClass, BOOL (^enumerator)(Ivar ivar));
 
 /// 获取类实例对象的变量名。
 /// @param aClass 类。

@@ -21,7 +21,7 @@ Method xz_objc_class_getInstanceMethod(Class const cls, SEL const target) {
     return result;
 }
 
-void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^block)(Method method, NSInteger index)) {
+void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^enumerator)(Method method, NSInteger index)) {
     unsigned int count = 0;
     Method *methods = class_copyMethodList(aClass, &count);
     if (count == 0) {
@@ -29,34 +29,34 @@ void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^block)(Method m
     }
     
     for (unsigned int i = 0; i < count; i++) {
-        if (!block(methods[i], i)) {
+        if (!enumerator(methods[i], i)) {
             break;
         }
     }
     free(methods);
 }
 
-void xz_objc_class_enumerateInstanceVariables(Class aClass, void (^block)(Ivar ivar)) {
+void xz_objc_class_enumerateInstanceVariables(Class aClass, BOOL (^enumerator)(Ivar ivar)) {
     unsigned int count = 0;
     Ivar _Nonnull *ivars = class_copyIvarList(aClass, &count);
-    if (count == 0) {
-        return;
-    }
     for (unsigned int i = 0; i < count; i++) {
-        block(ivars[i]);
+        if (!enumerator(ivars[i])) {
+            break;
+        }
     }
     free(ivars);
 }
 
 NSArray<NSString *> *xz_objc_class_getInstanceVariableNames(Class aClass) {
     NSMutableArray * __block arrayM = nil;
-    xz_objc_class_enumerateInstanceVariables(aClass, ^(Ivar ivar) {
+    xz_objc_class_enumerateInstanceVariables(aClass, ^BOOL(Ivar ivar) {
         NSString *ivarName = [NSString stringWithUTF8String:ivar_getName(ivar)];
         if (arrayM == nil) {
             arrayM = [NSMutableArray arrayWithObject:ivarName];
         } else {
             [arrayM addObject:ivarName];
         }
+        return YES;
     });
     return arrayM;
 }
