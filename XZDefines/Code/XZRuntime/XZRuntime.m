@@ -7,75 +7,228 @@
 
 #import "XZRuntime.h"
 
-BOOL xz_objc_class_copyMethod(Class const cls, SEL const target, SEL const source) {
-    if (class_respondsToSelector(cls, target)) {
-        return NO;
-    }
-    Method       const mtd = class_getInstanceMethod(cls, source);
-    IMP          const imp = method_getImplementation(mtd);
-    const char * const tps = method_getTypeEncoding(mtd);
-    return class_addMethod(cls, target, imp, tps);
+Method xz_objc_class_getMethod(Class const cls, SEL const target) {
+    Method __block result = NULL;
+    
+    xz_objc_class_enumerateMethods(cls, ^BOOL(Method method, NSInteger index) {
+        if (method_getName(method) == target) {
+            result = method;
+            return NO;
+        }
+        return YES;
+    });
+    
+    return result;
 }
 
-Method xz_objc_class_getInstanceMethod(Class const cls, SEL const target) {
-    Method method = NULL;
-    
+void xz_objc_class_enumerateMethods(Class aClass, BOOL (^enumerator)(Method method, NSInteger index)) {
     unsigned int count = 0;
-    Method *methods = class_copyMethodList(cls, &count);
+    Method *methods = class_copyMethodList(aClass, &count);
+    if (count == 0) {
+        return;
+    }
+    
     for (unsigned int i = 0; i < count; i++) {
-        if (method_getName(methods[i]) == target) {
-            method = methods[i];
+        if (!enumerator(methods[i], i)) {
             break;
         }
     }
     free(methods);
-    
-    return method;
 }
 
-xz_objc_status xz_objc_class_addMethod(Class const cls, SEL const name, SEL const source, SEL const sourceForOverride, SEL const sourceForExchange) {
-    NSCAssert(cls && name, @"参数 cls 和 name 不能为空");
+void xz_objc_class_enumerateVariables(Class aClass, BOOL (^enumerator)(Ivar ivar)) {
+    unsigned int count = 0;
+    Ivar _Nonnull *ivars = class_copyIvarList(aClass, &count);
+    for (unsigned int i = 0; i < count; i++) {
+        if (!enumerator(ivars[i])) {
+            break;
+        }
+    }
+    free(ivars);
+}
+
+NSArray<NSString *> *xz_objc_class_getVariableNames(Class aClass) {
+    NSMutableArray * __block arrayM = nil;
+    xz_objc_class_enumerateVariables(aClass, ^BOOL(Ivar ivar) {
+        NSString *ivarName = [NSString stringWithUTF8String:ivar_getName(ivar)];
+        if (arrayM == nil) {
+            arrayM = [NSMutableArray arrayWithObject:ivarName];
+        } else {
+            [arrayM addObject:ivarName];
+        }
+        return YES;
+    });
+    return arrayM;
+}
+
+void xz_objc_class_exchangeMethods(Class aClass, SEL selector1, SEL selector2) {
+    if (aClass == Nil || selector1 == nil || selector2 == nil) {
+        return;
+    }
+    
+    Method method1 = class_getInstanceMethod(aClass, selector1);
+    if (method1 == nil) return;
+    Method method2 = class_getInstanceMethod(aClass, selector2);
+    if (method2 == nil) return;
+    // 如果添加失败，则替换。
+    method_exchangeImplementations(method1, method2);
+}
+
+BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source, SEL _Nullable creation, SEL _Nullable override, SEL _Nullable exchange) {
+    if (aClass == Nil || selector == Nil) {
+        return NO;
+    }
+    
+    if (source == Nil) {
+        if (creation == nil) {
+            return NO;
+        }
+        source = aClass;
+    } else if (creation == Nil) {
+        if (aClass == source) {
+            return NO;
+        }
+        creation = selector;
+    }
+    
     // 方法已实现
-    if ([cls instancesRespondToSelector:name]) {
-        Method const oldMethod = xz_objc_class_getInstanceMethod(cls, name);
+    if ([aClass instancesRespondToSelector:selector]) {
+        Method const oldMethod = xz_objc_class_getMethod(aClass, selector);
         
-        // 方法由父类实现，重写方法
+        // 当前类没有这个方法，说明方法由父类实现，重写方法。
         if (oldMethod == NULL) {
-            if (sourceForOverride != NULL) {
-                Method      const mtd = class_getInstanceMethod(cls, sourceForOverride);
-                IMP         const imp = method_getImplementation(mtd);
-                const char *const enc = method_getTypeEncoding(mtd);
-                if (class_addMethod(cls, name, imp, enc)) {
-                    return xz_objc_status_success;
-                }
-                return xz_objc_status_failure;
+            if (override == NULL) {
+                return NO;
             }
-            return xz_objc_status_override;
+            
+            Method      const overrideMethod         = class_getInstanceMethod(source, override);
+            IMP         const overrideMethodIMP      = method_getImplementation(overrideMethod);
+            const char *const overrideMethodEncoding = method_getTypeEncoding(overrideMethod);
+
+            return class_addMethod(aClass, selector, overrideMethodIMP, overrideMethodEncoding);
         }
         
         // 方法已自身实现，交换方法
-        if (sourceForExchange != NULL) {
-            Method const newMethod = class_getInstanceMethod(cls, sourceForExchange);
-            method_exchangeImplementations(oldMethod, newMethod);
-            return xz_objc_status_success;
+        if (exchange == NULL) {
+            return NO;
         }
-        return xz_objc_status_exchange;
+        
+        // 先将待交换的方法，添加到 aClass 上，然后再交换 aClass 上的两个方法的实现。
+        Method exchangeMethod = class_getInstanceMethod(source, exchange);
+        if (aClass != source) {
+            // 将待交换的方法添加到自身，要先判断自身是否已有这个方法。
+            // 虽然可以通过重命名的方法，将方法给 aClass 添加上，
+            // 但是这样可能导致调用原方法的代码失效，因为原方法已经被换到重命名后的方法上。
+            // 所以这里返回 NO 由开发者处理此问题。
+            if ([aClass instancesRespondToSelector:exchange]) {
+                return NO;
+            }
+            
+            // 将 exchange 添加到 aClass 上
+            if (!class_addMethod(aClass, exchange, method_getImplementation(exchangeMethod), method_getTypeEncoding(exchangeMethod))) {
+                return NO;
+            }
+            
+            // 重新获取添加的方法
+            exchangeMethod = class_getInstanceMethod(aClass, exchange);
+        }
+        
+        method_exchangeImplementations(oldMethod, exchangeMethod);
+        return YES;
     }
     
-    if (source == NULL) {
-        return xz_objc_status_function;
-    }
-    
-    // 添加新方法
-    Method      const mtd = class_getInstanceMethod(cls, source);
+    // 方法未实现，添加新方法
+    Method      const mtd = class_getInstanceMethod(source, creation);
     IMP         const imp = method_getImplementation(mtd);
     const char *const enc = method_getTypeEncoding(mtd);
-    if (class_addMethod(cls, name, imp, enc)) {
-        return xz_objc_status_success;
-    }
-    return xz_objc_status_failure;
+    return class_addMethod(aClass, selector, imp, enc);
 }
 
+const char *xz_objc_class_getMethodTypeEncoding(Class aClass, SEL selector) {
+    if (aClass == Nil || selector == nil) {
+        return NULL;
+    }
+    Method method = class_getInstanceMethod(aClass, selector);
+    if (method == nil) {
+        return NULL;
+    }
+    return method_getTypeEncoding(method);
+}
+
+BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *encoding, id _Nullable creation, id _Nullable override, id (^ _Nullable exchange)(SEL exchange)) {
+    if (aClass == Nil || selector == Nil) {
+        return NO;
+    }
+    
+    if (creation == nil && override == nil && exchange == nil) {
+        return NO;
+    }
+    
+    // 方法已实现
+    if ([aClass instancesRespondToSelector:selector]) {
+        Method const oldMethod = xz_objc_class_getMethod(aClass, selector);
+        if (encoding == NULL) {
+            encoding = method_getTypeEncoding(class_getInstanceMethod(aClass, selector));
+        }
+        
+        // 当前类没有这个方法，说明方法由父类实现，重写方法。
+        if (oldMethod == NULL) {
+            if (override == NULL) {
+                return NO;
+            }
+            
+            IMP const overrideIMP = imp_implementationWithBlock(override);
+            if (overrideIMP == nil) {
+                return NO;
+            }
+            
+            return class_addMethod(aClass, selector, overrideIMP, encoding);
+        }
+        
+        // 方法已自身实现，交换方法
+        if (exchange == nil) {
+            return NO;
+        }
+        
+        // 动态生成一个可以用于添加交换方法的方法名
+        SEL exchangeSEL = nil;
+        NSString * const baseName = NSStringFromSelector(selector);
+        NSInteger index = 0;
+        do {
+            NSString *newName = [NSString stringWithFormat:@"__xz_exchange_%ld_%@", (long)index++, baseName];
+            exchangeSEL = sel_registerName(newName.UTF8String);
+        } while ([aClass instancesRespondToSelector:exchangeSEL]);
+        
+        // 生成方法 IMP
+        id const exchangeBlock = exchange(exchangeSEL);
+        if (exchangeBlock == nil) {
+            return NO;
+        }
+        
+        IMP const exchangeIMP = imp_implementationWithBlock(exchangeBlock);
+        if (exchangeIMP == nil) {
+            return NO;
+        }
+        
+        // 将 exchange 添加到 aClass 上
+        if (!class_addMethod(aClass, exchangeSEL, exchangeIMP, encoding)) {
+            return NO;
+        }
+        
+        // 交换方法
+        Method exchangeMethod = class_getInstanceMethod(aClass, exchangeSEL);
+        method_exchangeImplementations(oldMethod, exchangeMethod);
+        return YES;
+    }
+    
+    // 方法未实现，添加新方法
+    if (creation == nil || encoding == NULL) {
+        return NO;
+    }
+    
+    IMP const imp = imp_implementationWithBlock(creation);
+    return class_addMethod(aClass, selector, imp, encoding);
+}
 
 #pragma mark - 创建类
 
@@ -95,115 +248,83 @@ Class xz_objc_createClassWithName(Class superClass, NSString *name, NS_NOESCAPE 
         }
         objc_registerClassPair(newClass);
     }
+    
     return newClass;
 }
 
-Class xz_objc_createClass(Class superClass, NS_NOESCAPE XZRuntimeCreateClassBlock _Nullable classing)  {
+Class xz_objc_createClass(Class superClass, NS_NOESCAPE XZRuntimeCreateClassBlock _Nullable block)  {
     NSCParameterAssert(superClass != Nil);
     NSString *name = NSStringFromClass(superClass);
     if (![name hasPrefix:@"XZKit."]) {
         name = [NSString stringWithFormat:@"XZKit.%@", name];
     }
    
-    Class newClass = xz_objc_createClassWithName(superClass, name, classing);
+    Class newClass = xz_objc_createClassWithName(superClass, name, block);
     
     NSInteger i = 0;
-    while (newClass == Nil && i < 1024) {
-        name = [NSString stringWithFormat:@"%@.%ld", name, (long)(i++)];
-        newClass = xz_objc_createClassWithName(superClass, name, classing);
+    while (newClass == Nil) {
+        NSString *newName = [NSString stringWithFormat:@"%@.%ld", name, (long)(i++)];
+        newClass = xz_objc_createClassWithName(superClass, newName, block);
     }
     
     return newClass;
 }
 
 
-#pragma mark - Add Method
+#pragma mark - 添加方法
 
-BOOL xz_objc_class_addMethodByCopyingMethod(Class target, Method method, id _Nullable implementation)  {
-    if (target == Nil || method == nil) {
+BOOL xz_objc_class_copyMethod(Class source, SEL sourceSelector, Class target, SEL targetSelector) {
+    if (source == Nil || sourceSelector == nil) {
         return NO;
     }
-    SEL const sel = method_getName(method);
-    IMP const imp = implementation ? imp_implementationWithBlock(implementation) : method_getImplementation(method);
-    const char * const encoding = method_getTypeEncoding(method);
-    return class_addMethod(target, sel, imp, encoding);
-}
-
-BOOL xz_objc_class_copyMethodFromClass(Class target, Class source, SEL selector, id _Nullable implementation) {
-    if (source == Nil || selector == nil) {
-        return NO;
-    }
-    Method const method = class_getInstanceMethod(source, selector);
-    return xz_objc_class_addMethodByCopyingMethod(target, method, implementation);
-}
-
-NSInteger xz_objc_class_copyMethodsFromClass(Class target, Class source) {
-    NSInteger __block count = 0;
-    xz_objc_class_enumerateMethods(source, ^(Method method) {
-        if (xz_objc_class_addMethodByCopyingMethod(target, method, nil)) {
-            count += 1;
+    
+    if (target == Nil) {
+        if (targetSelector == nil) {
+            return NO;
         }
-    });
-    return count;
-}
-
-#pragma mark - 其他方法
-
-void xz_objc_class_exchangeMethodsImplementations(Class aClass, SEL selector1, SEL selector2) {
-    Method method1 = class_getInstanceMethod(aClass, selector1);
-    Method method2 = class_getInstanceMethod(aClass, selector2);
-    // 如果添加失败，则替换。
-    if (!class_addMethod(aClass, selector1, method_getImplementation(method2), method_getTypeEncoding(method1))) {
-        method_exchangeImplementations(method1, method2);
+        target = source;
+    } else if (targetSelector == nil) {
+        if (source == target) {
+            return NO;
+        }
+        targetSelector = sourceSelector;
     }
+    
+    if ([target instancesRespondToSelector:targetSelector]) {
+        if (xz_objc_class_getMethod(target, targetSelector) != nil) {
+            return NO;
+        }
+    }
+    
+    Method       const mtd = class_getInstanceMethod(source, sourceSelector);
+    IMP          const imp = method_getImplementation(mtd);
+    const char * const enc = method_getTypeEncoding(mtd);
+    
+    return class_addMethod(target, targetSelector, imp, enc);
 }
 
-void xz_objc_class_enumerateVariables(Class aClass, void (^block)(Ivar ivar)) {
+NSInteger xz_objc_class_copyMethods(Class source, Class target) {
+    NSInteger __block result = 0;
+    
     unsigned int count = 0;
-    Ivar _Nonnull *ivars = class_copyIvarList(aClass, &count);
-    if (count == 0) {
-        return;
-    }
-    for (unsigned int i = 0; i < count; i++) {
-        block(ivars[i]);
-    }
-    free(ivars);
-}
-
-NSArray<NSString *> *xz_objc_class_getVariableNames(Class aClass) {
-    NSMutableArray * __block arrayM = nil;
-    xz_objc_class_enumerateVariables(aClass, ^(Ivar ivar) {
-        NSString *ivarName = [NSString stringWithUTF8String:ivar_getName(ivar)];
-        if (arrayM == nil) {
-            arrayM = [NSMutableArray arrayWithObject:ivarName];
-        } else {
-            [arrayM addObject:ivarName];
+    Method *oldMethods = class_copyMethodList(target, &count);
+    xz_objc_class_enumerateMethods(source, ^BOOL(Method method, NSInteger index) {
+        // 不复制同名的方法
+        for (unsigned int i = 0; i < count; i++) {
+            if (oldMethods[i] == method) return YES;
+            if (method_getName(oldMethods[i]) == method_getName(method)) return YES;
         }
-    });
-    return arrayM;
-}
-
-void xz_objc_class_enumerateMethods(Class aClass, void (^block)(Method method)) {
-    unsigned int count = 0;
-    Method *methods = class_copyMethodList(aClass, &count);
-    if (count == 0) {
-        return;
-    }
-    for (unsigned int i = 0; i < count; i++) {
-        block(methods[i]);
-    }
-    free(methods);
-}
-
-NSArray<NSString *> *xz_objc_class_getMethodSelectors(Class aClass) {
-    NSMutableArray * __block arrayM = nil;
-    xz_objc_class_enumerateMethods(aClass, ^(Method method) {
-        NSString *methodName = NSStringFromSelector(method_getName(method));
-        if (arrayM == nil) {
-            arrayM = [NSMutableArray arrayWithObject:methodName];
-        } else {
-            [arrayM addObject:methodName];
+        // 复制方法
+        SEL          const sel = method_getName(method);
+        IMP          const imp = method_getImplementation(method);
+        const char * const enc = method_getTypeEncoding(method);
+        if (class_addMethod(target, sel, imp, enc)) {
+            result += 1;
         }
+        return YES;
     });
-    return arrayM;
+    free(oldMethods);
+    
+    return result;
 }
+
