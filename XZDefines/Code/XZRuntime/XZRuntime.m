@@ -7,10 +7,10 @@
 
 #import "XZRuntime.h"
 
-Method xz_objc_class_getInstanceMethod(Class const cls, SEL const target) {
+Method xz_objc_class_getMethod(Class const cls, SEL const target) {
     Method __block result = NULL;
     
-    xz_objc_class_enumerateInstanceMethods(cls, ^BOOL(Method method, NSInteger index) {
+    xz_objc_class_enumerateMethods(cls, ^BOOL(Method method, NSInteger index) {
         if (method_getName(method) == target) {
             result = method;
             return NO;
@@ -21,7 +21,7 @@ Method xz_objc_class_getInstanceMethod(Class const cls, SEL const target) {
     return result;
 }
 
-void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^enumerator)(Method method, NSInteger index)) {
+void xz_objc_class_enumerateMethods(Class aClass, BOOL (^enumerator)(Method method, NSInteger index)) {
     unsigned int count = 0;
     Method *methods = class_copyMethodList(aClass, &count);
     if (count == 0) {
@@ -36,7 +36,7 @@ void xz_objc_class_enumerateInstanceMethods(Class aClass, BOOL (^enumerator)(Met
     free(methods);
 }
 
-void xz_objc_class_enumerateInstanceVariables(Class aClass, BOOL (^enumerator)(Ivar ivar)) {
+void xz_objc_class_enumerateVariables(Class aClass, BOOL (^enumerator)(Ivar ivar)) {
     unsigned int count = 0;
     Ivar _Nonnull *ivars = class_copyIvarList(aClass, &count);
     for (unsigned int i = 0; i < count; i++) {
@@ -47,9 +47,9 @@ void xz_objc_class_enumerateInstanceVariables(Class aClass, BOOL (^enumerator)(I
     free(ivars);
 }
 
-NSArray<NSString *> *xz_objc_class_getInstanceVariableNames(Class aClass) {
+NSArray<NSString *> *xz_objc_class_getVariableNames(Class aClass) {
     NSMutableArray * __block arrayM = nil;
-    xz_objc_class_enumerateInstanceVariables(aClass, ^BOOL(Ivar ivar) {
+    xz_objc_class_enumerateVariables(aClass, ^BOOL(Ivar ivar) {
         NSString *ivarName = [NSString stringWithUTF8String:ivar_getName(ivar)];
         if (arrayM == nil) {
             arrayM = [NSMutableArray arrayWithObject:ivarName];
@@ -61,7 +61,7 @@ NSArray<NSString *> *xz_objc_class_getInstanceVariableNames(Class aClass) {
     return arrayM;
 }
 
-void xz_objc_class_exchangeInstanceMethods(Class aClass, SEL selector1, SEL selector2) {
+void xz_objc_class_exchangeMethods(Class aClass, SEL selector1, SEL selector2) {
     if (aClass == Nil || selector1 == nil || selector2 == nil) {
         return;
     }
@@ -74,7 +74,7 @@ void xz_objc_class_exchangeInstanceMethods(Class aClass, SEL selector1, SEL sele
     method_exchangeImplementations(method1, method2);
 }
 
-BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source, SEL _Nullable creation, SEL _Nullable override, IMP (^exchange)(SEL selector)) {
+BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source, SEL _Nullable creation, SEL _Nullable override, SEL _Nullable exchange) {
     if (aClass == Nil || selector == Nil) {
         return NO;
     }
@@ -93,7 +93,7 @@ BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source,
     
     // 方法已实现
     if ([aClass instancesRespondToSelector:selector]) {
-        Method const oldMethod = xz_objc_class_getInstanceMethod(aClass, selector);
+        Method const oldMethod = xz_objc_class_getMethod(aClass, selector);
         
         // 当前类没有这个方法，说明方法由父类实现，重写方法。
         if (oldMethod == NULL) {
@@ -144,7 +144,7 @@ BOOL xz_objc_class_addMethod(Class aClass, SEL selector, Class _Nullable source,
     return class_addMethod(aClass, selector, imp, enc);
 }
 
-const char *xz_objc_class_getInstanceMethodTypeEncoding(Class aClass, SEL selector) {
+const char *xz_objc_class_getMethodTypeEncoding(Class aClass, SEL selector) {
     if (aClass == Nil || selector == nil) {
         return NULL;
     }
@@ -166,7 +166,10 @@ BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *en
     
     // 方法已实现
     if ([aClass instancesRespondToSelector:selector]) {
-        Method const oldMethod = xz_objc_class_getInstanceMethod(aClass, selector);
+        Method const oldMethod = xz_objc_class_getMethod(aClass, selector);
+        if (encoding == NULL) {
+            encoding = method_getTypeEncoding(class_getInstanceMethod(aClass, selector));
+        }
         
         // 当前类没有这个方法，说明方法由父类实现，重写方法。
         if (oldMethod == NULL) {
@@ -178,6 +181,7 @@ BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *en
             if (overrideIMP == nil) {
                 return NO;
             }
+            
             return class_addMethod(aClass, selector, overrideIMP, encoding);
         }
         
@@ -200,6 +204,7 @@ BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *en
         if (exchangeBlock == nil) {
             return NO;
         }
+        
         IMP const exchangeIMP = imp_implementationWithBlock(exchangeBlock);
         if (exchangeIMP == nil) {
             return NO;
@@ -217,9 +222,10 @@ BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char *en
     }
     
     // 方法未实现，添加新方法
-    if (creation == nil) {
+    if (creation == nil || encoding == NULL) {
         return NO;
     }
+    
     IMP const imp = imp_implementationWithBlock(creation);
     return class_addMethod(aClass, selector, imp, encoding);
 }
@@ -285,7 +291,7 @@ BOOL xz_objc_class_copyMethod(Class source, SEL sourceSelector, Class target, SE
     }
     
     if ([target instancesRespondToSelector:targetSelector]) {
-        if (xz_objc_class_getInstanceMethod(target, targetSelector) != nil) {
+        if (xz_objc_class_getMethod(target, targetSelector) != nil) {
             return NO;
         }
     }
@@ -302,7 +308,7 @@ NSInteger xz_objc_class_copyMethods(Class source, Class target) {
     
     unsigned int count = 0;
     Method *oldMethods = class_copyMethodList(target, &count);
-    xz_objc_class_enumerateInstanceMethods(source, ^BOOL(Method method, NSInteger index) {
+    xz_objc_class_enumerateMethods(source, ^BOOL(Method method, NSInteger index) {
         // 不复制同名的方法
         for (unsigned int i = 0; i < count; i++) {
             if (oldMethods[i] == method) return YES;
