@@ -61,14 +61,14 @@ logAll(foo, bar);
 ```objc
 // 在 XZExtensions 中，有如下使用 RGB 创建颜色的便利函数，就使用了 XZATTR_OVERLOAD 宏。
 UIColor *rgba(UInt8 red, UInt8 green, UInt8 blue, UInt8 alpha) XZATTR_OVERLOAD {
-return [UIColor colorWithRed:red / 255.0 green:green / 255.0 blue:blue / 255.0 alpha:alpha / 255.0];
+    return [UIColor colorWithRed:red / 255.0 green:green / 255.0 blue:blue / 255.0 alpha:alpha / 255.0];
 }
 
 UIColor *rgba(UInt32 value) XZATTR_OVERLOAD {
-return rgba(value >> 24, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
+    return rgba(value >> 24, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
 }
 
-NSLog(@"%@", rgba(0xAABBCCDD));                            // UIExtendedSRGBColorSpace 0.666667 0.733333 0.8 0.866667
+NSLog(@"%@", rgba(0xAABBCCDD));             // UIExtendedSRGBColorSpace 0.666667 0.733333 0.8 0.866667
 NSLog(@"%@", rgba(0xAA, 0xBB, 0xCC, 0xDD)); // UIExtendedSRGBColorSpace 0.666667 0.733333 0.8 0.866667
 ```
 
@@ -126,8 +126,8 @@ if (isNonEmpty((NSString *)foo)) {
 if (isNonEmpty((NSDictionary *)foo)) {
     NSLog(@"foo is a non-emtpy NSDictionary");
 }
-if (isNonEmpty((Bar *)foo)) {
-    NSLog(@"foo is a not nil and not NSNull value, but may be not Bar type");
+if (isNonEmpty(foo)) {
+    NSLog(@"foo is a not nil and not NSNull value");
 }
 ```
 
@@ -144,7 +144,7 @@ if (![name isKindOfClass:NSString.class] || name.length == 0) {
 }
 
 // 使用 asNonEmpty 可以简化上面的 if 语句。
-NSString *name = asNonEmpty((NSString *)dict[@"name"], @"Visitor");
+NSString *name = asNonEmpty(dict[@"name"], @"Visitor");
 ```
 
 ### 4、XZRuntime - 运行时便利函数
