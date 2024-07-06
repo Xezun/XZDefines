@@ -7,34 +7,36 @@
 
 #import <XCTest/XCTest.h>
 @import XZDefines;
+@import ObjectiveC;
 
 @interface Foo : NSObject
 - (void)foo;
-- (NSString *)speakFoo;
-- (NSString *)speakTwo;
+- (NSString *)speakFoo:(NSString *)name;
+- (NSString *)speakTwo:(NSString *)name;
 @end
 
 @interface Bar : Foo
 - (void)bar;
-- (NSString *)speakBar;
-- (NSString *)speakTwo;
-- (NSString *)exchange_speakTwo;
+- (NSString *)speakBar:(NSString *)name;
+- (NSString *)speakTwo:(NSString *)name;
+- (NSString *)exchange_speakTwo:(NSString *)name;
 @end
 
-@interface FooBar : NSObject
-- (NSString *)speakNew;
+@interface Foobar : NSObject
+- (NSString *)speakNew:(NSString *)name;
 
-- (NSString *)speakFoo;
-- (NSString *)override_speakFoo;
-- (NSString *)exchange_speakFoo;
+- (NSString *)speakFoo:(NSString *)name;
+- (NSString *)override_speakFoo:(NSString *)name;
+- (NSString *)exchange_speakFoo:(NSString *)name;
 
-- (NSString *)speakBar;
-- (NSString *)override_speakBar;
-- (NSString *)exchange_speakBar;
+- (NSString *)speakBar:(NSString *)name;
+- (NSString *)override_speakBar:(NSString *)name;
+- (NSString *)exchange_speakBar:(NSString *)name;
 
-- (NSString *)speakTwo;
-- (NSString *)override_speakTwo;
-- (NSString *)exchange_speakTwo;
+- (NSString *)speakTwo:(NSString *)name;
+- (NSString *)override_speakTwo:(NSString *)name;
+- (NSString *)exchange_speakTwo:(NSString *)name;
+- (NSString *)__xz_exchange_0_speakTwo:(NSString *)name;
 @end
 
 @interface ExampleTests : XCTestCase
@@ -308,61 +310,104 @@
 }
 
 - (void)testXZRuntime {
-    XCTAssert(xz_objc_class_getInstanceMethod([Foo class], @selector(foo)) != nil);
-    XCTAssert(xz_objc_class_getInstanceMethod([Foo class], @selector(bar)) == nil);
+    XCTAssert(xz_objc_class_getMethod([Foo class], @selector(foo)) != nil);
+    XCTAssert(xz_objc_class_getMethod([Foo class], @selector(bar)) == nil);
     
-    XCTAssert(xz_objc_class_getInstanceMethod([Bar class], @selector(foo)) == nil);
-    XCTAssert(xz_objc_class_getInstanceMethod([Bar class], @selector(bar)) != nil);
+    XCTAssert(xz_objc_class_getMethod([Bar class], @selector(foo)) == nil);
+    XCTAssert(xz_objc_class_getMethod([Bar class], @selector(bar)) != nil);
     
-    xz_objc_class_enumerateInstanceMethods([Foo class], ^BOOL(Method  _Nonnull method, NSInteger index) {
+    xz_objc_class_enumerateMethods([Foo class], ^BOOL(Method  _Nonnull method, NSInteger index) {
         NSLog(@"-[Foo %@]", NSStringFromSelector(method_getName(method)));
         return YES;
     });
-    xz_objc_class_enumerateInstanceMethods([Bar class], ^BOOL(Method  _Nonnull method, NSInteger index) {
+    xz_objc_class_enumerateMethods([Bar class], ^BOOL(Method  _Nonnull method, NSInteger index) {
         NSLog(@"-[Bar %@]", NSStringFromSelector(method_getName(method)));
         return YES;
     });
-    xz_objc_class_enumerateInstanceVariables([Foo class], ^BOOL(Ivar  _Nonnull ivar) {
+    xz_objc_class_enumerateVariables([Foo class], ^BOOL(Ivar  _Nonnull ivar) {
         NSLog(@"Foo->%s", ivar_getName(ivar));
         return YES;
     });
-    xz_objc_class_enumerateInstanceVariables([Bar class], ^BOOL(Ivar  _Nonnull ivar) {
+    xz_objc_class_enumerateVariables([Bar class], ^BOOL(Ivar  _Nonnull ivar) {
         NSLog(@"Bar->%s", ivar_getName(ivar));
         return YES;
     });
     
+    NSString * const name = @"Xezun";
     Bar *bar = [[Bar alloc] init];
-    XCTAssert([[bar speakFoo] isEqualToString:@"foo"]);
-    XCTAssert([[bar speakBar] isEqualToString:@"bar"]);
-    xz_objc_class_exchangeInstanceMethods([Bar class], @selector(speakFoo), @selector(speakBar));
-    XCTAssert([[bar speakFoo] isEqualToString:@"bar"]);
-    XCTAssert([[bar speakBar] isEqualToString:@"foo"]);
     
-    xz_objc_class_addMethod([Bar class], @selector(speakNew), [FooBar class], @selector(speakNew), nil, nil);
-    XCTAssert([[(FooBar*)bar speakNew] isEqualToString:@"foobar new"]);
+    XCTAssert([[bar speakFoo:name] isEqualToString:@"foo"]);
+    XCTAssert([[bar speakBar:name] isEqualToString:@"bar"]);
+    xz_objc_class_exchangeMethods([Bar class], @selector(speakFoo:), @selector(speakBar:));
+    XCTAssert([[bar speakFoo:name] isEqualToString:@"bar"]);
+    XCTAssert([[bar speakBar:name] isEqualToString:@"foo"]);
+}
+
+- (void)testXZRuntime_addMethod {
+    NSString * const name = @"Xezun";
+    Bar      * const bar  = [[Bar alloc] init];
     
-    xz_objc_class_addMethod([Bar class], @selector(speakFoo), [FooBar class], @selector(speakFoo), @selector(override_speakFoo), @selector(exchange_speakFoo));
-    XCTAssert([[bar speakFoo] isEqualToString:@"foobar override foo"]);
+    NSLog(@"添加方法：目标类没有待添加的方法");
+    xz_objc_class_addMethod([Bar class], @selector(speakNew:), [Foobar class], @selector(speakNew:), nil, nil);
+    XCTAssert([[(Foobar*)bar speakNew:name] isEqualToString:@"foobar new"]);
     
-    xz_objc_class_addMethod([Bar class], @selector(speakBar), [FooBar class], @selector(speakBar), @selector(override_speakBar), @selector(exchange_speakBar));
-    XCTAssert([[bar speakBar] isEqualToString:@"foobar exchange bar"]);
+    NSLog(@"重写方法：父类已实现，子类未实现");
+    xz_objc_class_addMethod([Bar class], @selector(speakFoo:), [Foobar class], nil, @selector(override_speakFoo:), nil);
+    XCTAssert([[bar speakFoo:name] isEqualToString:@"foobar override foo"]);
     
-    BOOL success = xz_objc_class_addMethod([Bar class], @selector(speakTwo), [FooBar class], @selector(speakTwo), @selector(override_speakTwo), @selector(exchange_speakTwo));
+    NSLog(@"交换方法：目标类没有待交换的方法");
+    xz_objc_class_addMethod([Bar class], @selector(speakBar:), [Foobar class], @selector(speakBar:), @selector(override_speakBar:), @selector(exchange_speakBar:));
+    XCTAssert([[bar speakBar:name] isEqualToString:@"foobar exchange bar"]);
+    
+    NSLog(@"交换方法：目标类已有待交换的方法");
+    BOOL success = xz_objc_class_addMethod([Bar class], @selector(speakTwo:), [Foobar class], @selector(speakTwo:), @selector(override_speakTwo:), @selector(exchange_speakTwo:));
     XCTAssert(success == NO);
 }
 
-- (void)xz_creation {
+- (void)testXZRuntime_addMethodWithBlock {
+    NSString * const name = @"Xezun";
+    Bar      * const bar  = [[Bar alloc] init];
     
+    NSLog(@"添加方法：目标类没有待添加的方法");
+    const char *encoding = xz_objc_class_getMethodTypeEncoding([Foobar class], @selector(speakNew:));
+    xz_objc_class_addMethodWithBlock([Bar class], @selector(speakNew:), encoding, ^NSString *(Bar *self, NSString *name) {
+        return @"block new";
+    }, nil, nil);
+    XCTAssert([[(Foobar*)bar speakNew:name] isEqualToString:@"block new"]);
+    
+    NSLog(@"重写方法：父类已实现，子类未实现");
+    xz_objc_class_addMethodWithBlock([Bar class], @selector(speakFoo:), NULL, nil, ^NSString *(Bar *self, NSString *name) {
+        struct objc_super super = {
+                 .receiver = self,
+                 .super_class = class_getSuperclass(object_getClass(self))
+             };
+        NSString *word = ((NSString *(*)(struct objc_super *, SEL, NSString *))objc_msgSendSuper)(&super, @selector(speakFoo:), name);
+        NSLog(@"block override foo super: %@", word);
+        return @"block override foo";
+    }, nil);
+    XCTAssert([[bar speakFoo:name] isEqualToString:@"block override foo"]);
+    
+    NSLog(@"交换方法：目标类没有待交换的方法");
+    xz_objc_class_addMethodWithBlock([Bar class], @selector(speakBar:), NULL, nil, nil, ^id _Nonnull(SEL  _Nonnull selector) {
+        return ^NSString *(Bar *self, NSString *name) {
+            NSString *word = ((NSString *(*)(Bar *, SEL, NSString *))objc_msgSend)(self, selector, name);
+            NSLog(@"block exchange bar self: %@", word);
+            return @"block exchange bar";
+        };
+    });
+    XCTAssert([[bar speakBar:name] isEqualToString:@"block exchange bar"]);
+    
+    NSLog(@"交换方法：目标类有待交换的方法");
+    xz_objc_class_addMethodWithBlock([Bar class], @selector(speakTwo:), NULL, nil, nil, ^id _Nonnull(SEL  _Nonnull selector) {
+        return ^NSString *(Bar *self, NSString *name) {
+            NSString *word = ((NSString *(*)(Bar *, SEL, NSString *))objc_msgSend)(self, selector, name);
+            NSLog(@"block exchange two self: %@", word);
+            return @"block exchange two";
+        };
+    });
+    XCTAssert([[bar speakTwo:name] isEqualToString:@"block exchange two"]);
 }
 
-- (void)xz_override {
-    
-    
-}
-
-- (void)xz_exchange {
-    
-}
 
 - (void)testPerformanceExample {
     // This is an example of a performance test case.
@@ -382,11 +427,13 @@
     NSLog(@"method foo");
 }
 
-- (NSString *)speakFoo {
+- (NSString *)speakFoo:(NSString *)name {
+    NSLog(@"foo: %@", name);
     return @"foo";
 }
 
-- (NSString *)speakTwo {
+- (NSString *)speakTwo:(NSString *)name {
+    NSLog(@"foo two: %@", name);
     return @"foo two";
 }
 
@@ -400,58 +447,77 @@
     NSLog(@"method bar");
 }
 
-- (NSString *)speakBar {
+- (NSString *)speakBar:(NSString *)name {
+    NSLog(@"bar: %@", name);
     return @"bar";
 }
 
-- (NSString *)speakTwo {
-    NSLog(@"exchange_speakTwo => %@", NSStringFromSelector(_cmd));
+- (NSString *)speakTwo:(NSString *)name {
+    NSLog(@"bar two: %@", name);
     return @"bar two";
 }
 
-- (NSString *)exchange_speakTwo {
+- (NSString *)exchange_speakTwo:(NSString *)name {
+    NSLog(@"bar exchange two: %@", name);
     return @"bar exchange two";
 }
-
+- (NSString *)__xz_exchange_0_speakTwo:(NSString *)name {
+    NSLog(@"foobar exchange two 0: %@", name);
+    [self __xz_exchange_0_speakTwo:name];
+    return @"foobar exchange two 0";
+}
 @end
 
 
-@implementation FooBar
+@implementation Foobar
 
-- (NSString *)speakNew {
+- (NSString *)speakNew:(NSString *)name {
+    NSLog(@"foobar new: %@", name);
     return @"foobar new";
 }
 
-- (NSString *)speakFoo {
+- (NSString *)speakFoo:(NSString *)name {
+    NSLog(@"foobar foo: %@", name);
     return @"foobar foo";
 }
-- (NSString *)override_speakFoo {
+- (NSString *)override_speakFoo:(NSString *)name {
+    NSLog(@"foobar override foo: %@", name);
     return @"foobar override foo";
 }
-- (NSString *)exchange_speakFoo {
+- (NSString *)exchange_speakFoo:(NSString *)name {
+    NSLog(@"foobar exchange foo: %@", name);
     return @"foobar exchange foo";
 }
 
-- (NSString *)speakBar {
+- (NSString *)speakBar:(NSString *)name {
+    NSLog(@"foobar bar: %@", name);
     return @"foobar bar";
 }
-- (NSString *)override_speakBar {
+- (NSString *)override_speakBar:(NSString *)name {
+    NSLog(@"foobar override bar: %@", name);
     return @"foobar override bar";
 }
-- (NSString *)exchange_speakBar {
+- (NSString *)exchange_speakBar:(NSString *)name {
+    NSLog(@"foobar exchange bar: %@", name);
     return @"foobar exchange bar";
 }
 
-- (NSString *)speakTwo {
+- (NSString *)speakTwo:(NSString *)name {
+    NSLog(@"foobar two: %@", name);
     return @"foobar two";
 }
-- (NSString *)override_speakTwo {
+- (NSString *)override_speakTwo:(NSString *)name {
+    NSLog(@"foobar override two: %@", name);
     return @"foobar override two";
 }
-- (NSString *)exchange_speakTwo {
-    NSLog(@"exchange_speakTwo => %@", NSStringFromSelector(_cmd));
-    [self exchange_speakTwo];
+- (NSString *)exchange_speakTwo:(NSString *)name {
+    NSLog(@"foobar exchange two: %@", name);
+    [self exchange_speakTwo:name];
     return @"foobar exchange two";
 }
-
+- (NSString *)__xz_exchange_0_speakTwo:(NSString *)name {
+    NSLog(@"foobar exchange two 0: %@", name);
+    [self exchange_speakTwo:name];
+    return @"foobar exchange two 0";
+}
 @end
