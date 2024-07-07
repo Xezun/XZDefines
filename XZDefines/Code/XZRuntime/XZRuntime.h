@@ -16,15 +16,19 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - 基础方法
 
 /// 获取类 aClass 自身的 selector 实例方法，即不计算从父类继承的方法。
-/// @note 为提高性能，使用本方法前可先检测类 cls 是否能响应 target 方法。
+/// @note 为提高性能，使用本方法前可先检测类 aClass 是否能响应 target 方法。
+///
 /// @code
-/// if ([cls instancesRespondToSelector:target]) {
-///     Method method = xz_objc_class_getMethod(cls, target);
+/// ```objc
+/// if ([aClass instancesRespondToSelector:target]) {
+///     Method method = xz_objc_class_getMethod(aClass, target);
 ///     if (method == nil) {
 ///         NSLog(@"方法 %s 从父类继承而来", target);
 ///     }
 /// }
+/// ```
 /// @endcode
+///
 /// @param aClass 待获取方法的类
 /// @param selector 待获取方法
 FOUNDATION_EXPORT Method _Nullable xz_objc_class_getMethod(Class const aClass, SEL const selector);
@@ -56,12 +60,15 @@ FOUNDATION_EXPORT void xz_objc_class_exchangeMethods(Class aClass, SEL selector1
 /// 编译器不再使用`self`来获取父类，而是直接使用所定义类的名字来获取，`super`不再有动态性。
 ///
 /// 可以使用下面的方法手动向父类发送消息。
+///
 /// @code
+/// ```objc
 /// struct objc_super _super = {
 ///     .receiver = self,
 ///     .super_class = class_getSuperclass(object_getClass(self))
 /// };
 /// ((void (*)(struct objc_super *, SEL, BOOL))objc_msgSendSuper)(&_super, @selector(viewWillAppear:), animated);
+/// ```
 /// @endcode
 ///
 /// @param aClass 待添加方法的类。
@@ -79,10 +86,11 @@ FOUNDATION_EXPORT const char * _Nullable xz_objc_class_getMethodTypeEncoding(Cla
 
 /// 通过块函数给对象添加方法。
 /// @discussion
-/// 块函数形式如 `block(self, args...)` 。
+/// 块函数形式如 `block(self, args...)` 并将作为原生函数 `imp_implementationWithBlock(block)` 的参数使用。
 ///
 /// @code
-/// // 先在任意类上定义一个待添加的方法，用于获取 type-encoding ，当然熟悉规则，也可以手写。
+/// ```objc
+/// // 先在任意类上定义一个待添加的方法，用于获取 type-encoding ，如果熟悉编码规则，也可以手写。
 /// const char *encoding = xz_objc_class_getMethodTypeEncoding([AnyClass class], @selector(sayHello:));
 /// // 向 Foobar 上添加 -sayHello: 方法。
 /// xz_objc_class_addMethodWithBlock([Foobar class], @selector(sayHello:), encoding, ^NSString *(Foobar *self, NSString *name) {
@@ -102,12 +110,77 @@ FOUNDATION_EXPORT const char * _Nullable xz_objc_class_getMethodTypeEncoding(Cla
 ///         return [NSString stringWithFormat:@"exchange %@", word];
 ///     };
 /// });
+/// ```
+/// @endcode
+///
+/// 在 Swift 中，必须使用 `@convention(block)` 将闭包转换为 `block` 才能作为方法的 IMP 使用。
+///
+/// 由于 Swift 不支持 `objc_msgSend` 和 `objc_msgSendSuper` 函数，我们需要将调用父类和调用原始方法的逻辑使用 OC 实现。
+///
+/// @code
+/// ```objc
+/// NSString *xz_msgSendSuper_sayHello(Foo *receiver, NSString *name) NS_SWIFT_NAME(xz_msgSendSuper(_:sayHello:)) {
+///     struct objc_super super = {
+///         .receiver = receiver,
+///         .super_class = class_getSuperclass(object_getClass(receiver))
+///     };
+///     return ((NSString *(*)(struct objc_super *, SEL, NSString *))objc_msgSendSuper)(&super, @selector(sayHello:), name);
+/// }
+///
+/// NSString *xz_msgSendExchange_sayHello(Foo *receiver, SEL selector, NSString *name) NS_SWIFT_NAME(xz_msgSend(_:exchange:sayHello:))  {
+///     return ((NSString *(*)(Foo *, SEL, NSString *))objc_msgSend)(receiver, selector, name);
+/// }
+/// ```
+/// @endcode
+///
+/// @code
+/// ```swift
+/// typealias MethodBlock = @convention(block) (Foo, String) -> String
+/// let selector = #selector(Bar.sayHello(_:))      // 在 Bar 上定义了一个我们要添加的方法，以便获取方法的 type-encoding
+/// let encoding = xz_objc_class_getMethodTypeEncoding(Bar.self, selector)
+/// let creation: MethodBlock = { `self`, name in   // 在 block 中，使用 self 代表 Foo 对象
+///     return "Hello \(name)";
+/// }
+/// let override: MethodBlock = { `self`, name in
+///     let word = xz_msgSendSuper(self, sayHello: name);
+///     return "override \(word)"
+/// }
+/// let exchange = { (_ selector: Selector) in
+///     let exchange: MethodBlock = { `self`, name in
+///         let word = xz_msgSend(self, exchange: selector, sayHello: name)
+///         return "exchange \(word)"
+///     }
+/// }
+/// xz_objc_class_addMethodWithBlock(Foo.self, selector, encoding, creation, override, exchange)
+/// ```
+/// @endcode
+///
+/// 在 Swift 中，必须使用 `@convention(block)` 标记的闭包，才能作为方法的实现。
+///
+/// 且由于 Swift 不支持 `objc_msgSend` 和 `objc_msgSendSuper` 函数，避免将调用父类和调用原始方法的逻辑使用 OC 实现。
+///
+/// @code
+/// typealias MethodType = @convention(block) (Foobar, String) -> String
+/// let creation: MethodType = { `self`, name in
+///     return "Hello \(name)";
+/// }
+/// let override: MethodType = { `self`, name in
+///     let word = Foobar.msgSendSuper(self, name);
+///     return "override \(word)"
+/// }
+/// let exchange = { (_ selector: Selector) in
+///     let exchange: MethodType = { `self`, name in
+///         let word = Foobar.msgSendExchange(selector, self, name)
+///         return "exchange \(word)"
+///     }
+/// }
+/// xz_objc_class_addMethodWithBlock(Foobar.self, #selector(sayHello(_:)), encoding, creation, override, exchange)
 /// @endcode
 ///
 /// @param aClass 要添加方法的类。
 /// @param selector 要添加的方法名。
 /// @param encoding 待添加方法的 type-encoding 编码，如果是已存在的方法，可以为 NULL 值。
-/// @param creation 如果待添加的方法未创建，则使用此块函数作为 IMP 新建方法。
+/// @param creation 如果待添加的方法未创建，则使用此块函数作为 IMP 新建方法，同时参数 encoding 必须提供。
 /// @param override 如果待添加的方法已由超类实现，则使用此块函数作为 IMP 重写方法。
 /// @param exchange 如果待添加的方法已由自身实现，则使用此块函数*返回的块函数*为 IMP 构造方法，并与原方法进行交换；新构造的方法，作为此参数块函数的参数。
 FOUNDATION_EXPORT BOOL xz_objc_class_addMethodWithBlock(Class aClass, SEL selector, const char * _Nullable encoding, id _Nullable creation, id _Nullable override, id (^ _Nullable exchange)(SEL selector));
