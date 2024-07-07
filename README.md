@@ -151,12 +151,13 @@ NSString *name = asNonEmpty(dict[@"name"], @"Visitor");
 
 #### 4.1 通用方法
 
-- `xz_objc_class_getInstanceMethod` - 获取类自身的实例方法。
-- `xz_objc_class_enumerateInstanceMethods` - 遍历类自身的实例方法。
-- `xz_objc_class_enumerateInstanceVariables` - 遍历类自身的实例变量。
-- `xz_objc_class_getInstanceVariableNames` - 获取类自身实例变量名称。
-- `xz_objc_class_exchangeInstanceMethods` - 类交换自己方法的实现。
+- `xz_objc_class_getMethod` - 获取类自身的实例方法。
+- `xz_objc_class_enumerateMethods` - 遍历类自身的实例方法。
+- `xz_objc_class_enumerateVariables` - 遍历类自身的实例变量。
+- `xz_objc_class_getVariableNames` - 获取类自身实例变量名称。
+- `xz_objc_class_exchangeMethods` - 类交换自己方法的实现。
 - `xz_objc_class_addMethod` - 为类添加方法。
+- `xz_objc_class_addMethodWithBlock` - 为类添加方法。
 
 #### 4.2 动态创建类
 
