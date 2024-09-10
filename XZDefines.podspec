@@ -10,7 +10,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'XZDefines'
-  s.version          = '1.3.0'
+  s.version          = '1.3.1'
   s.summary          = 'XZKit 的基础部分'
 
 # This description is used to generate tags and improve search results.
@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/Xezun/XZDefines.git', :tag => s.version.to_s }
   # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
-  s.ios.deployment_target = '11.0'
+  s.ios.deployment_target = '12.0'
   s.pod_target_xcconfig = { 'GCC_PREPROCESSOR_DEFINITIONS' => 'XZ_FRAMEWORK=1' }
   
   s.default_subspec = 'Code'
