@@ -128,39 +128,48 @@ FOUNDATION_EXPORT NSTimeInterval const XZAnimationDuration;
 #endif
 
 
-#ifndef weakize
+/// 【enweak 弱引用编码  与 deweak 弱引用解码】
+/// 命名：由于 -ize 后缀，不能表明操作需配对使用，所以使用 en-、de- 表明操作必须配对使用的。
+/// 用途：避免 block 捕获外部变量造成循环引用：在 block 外，先对变量进行 enweak 编码；然后在 block 中，使用外部变量前，再对变量进行 deweak 解码。
+/// 原理：编码不改变变量自身的引用属性，只是根据变量名，先进行编码，生成弱引用变量，然后在 block 中，再进行解码，生成名称相同的强引用变量。
+/// 其它：编码不改变对象的引用计数；解码会增加引用计数，但可能为 nil 值。
 /// @code
-/// @weakize(self);             // 将变量进行 weak 编码
+/// @enweak(self);             // 将变量进行 weak 编码
 /// dispatch_async(dispatch_get_main_queue(), ^{
-///     @strongize(self);       // 将变量进行 weak 解码
-///     [self description];     // 此处的 self 为 strong，为 block 内局部变量，非捕获外部的变量
+///     @deweak(self);         // 将变量进行 weak 解码
+///     [self description];    // 此处的 self 为 strong，为 block 内局部变量，非捕获外部的变量
 /// });
 /// @endcode
-/// 将变量进行 weak 编码，并且在之后的 block 中，可以通过 strongize(VAR) 解码出 VAR 变量以供使用，以避免循环引用。
-/// @note 该方法不改变 VAR 自身的强、弱引用属性。
-/// @note 该方法不改变 VAR 的引用计数。
-/// @define weakize
-/// @param VAR 变量
-#define weakize(...) xzmacro_keyize  xzmacro_args_map(__weakize_imp__,, __VA_ARGS__)
-#define __weakize_imp__(INDEX, VAR) __typeof__(VAR) __weak const xzmacro_paste(__xz_weak_, VAR) = (VAR);
+///
+#ifndef enweak
+#define enweak(...) xzmacro_keyize  xzmacro_args_map(__enweak_imp__, , __VA_ARGS__)
+#define __enweak_imp__(INDEX, VAR) __typeof__(VAR) __weak const xzmacro_paste(__xz_weak_, VAR) = (VAR);
 #endif
 
-#ifndef strongize
-/// 将变量进行 weak 解码，以便之后可以将变量将作为强引用变量使用。
-/// @note 该方法必须搭配 @weakize 使用。
-/// @note 在 block 中，该方法捕获的是 weakize 编码后的弱引用变量，即不捕获外部的 VAR 变量，不会造成循环引用。
-/// @note 该方法必须在使用 VAR 变量之前使用。
-/// @seealso @weakize()
-/// @define strongize
-/// @param VAR 变量
-#define strongize(...) xzmacro_keyize                   \
+#ifndef deweak
+#define deweak(...) xzmacro_keyize                      \
 _Pragma("clang diagnostic push")                        \
 _Pragma("clang diagnostic ignored \"-Wshadow\"")        \
-xzmacro_args_map(__strongize_imp__,, __VA_ARGS__)       \
+xzmacro_args_map(__deweak_imp__,, __VA_ARGS__)          \
 _Pragma("clang diagnostic pop")
-#define __strongize_imp__(INDEX, VAR) __typeof__(VAR) __strong const VAR = xzmacro_paste(__xz_weak_, VAR);
+// 这里的 typeof 使用编码后的弱引用变量，是因为：
+// typeof 会同时获取变量的 Nullability 标记，所以，如果变量已经被 _Nonnull 标记，解码时再添加 _Nullable 标记会发生语法错误；
+// typeof 会同时获取变量的 const 标记，而编码后的弱引用变量，已经被 const 标记，解码时就不需要再添加 const 标记。
+#define __deweak_imp__(INDEX, VAR) __typeof__(xzmacro_paste(__xz_weak_, VAR)) __strong _Nullable VAR = xzmacro_paste(__xz_weak_, VAR);
 #endif
 
+// XZLog 仅在 XZ_DEBUG 且 DEBUG 模式下才会输出日志到控制台。
+#ifndef XZLog
+#ifdef XZ_DEBUG
+#if DEBUG
+#define XZLog(format, ...) NSLog(@"%s(%d) \n%@", __PRETTY_FUNCTION__, __LINE__, [NSString stringWithFormat:format, ##__VA_ARGS__])
+#else  // => #if DEBUG
+#define XZLog(...)  do {} while (0)
+#endif // => #if DEBUG
+#else  // => #ifdef XZ_DEBUG
+#define XZLog(...)  do {} while (0)
+#endif // => #ifdef XZ_DEBUG
+#endif // => #ifndef XZLog
 
 
 // 关于重写 NSLog 的一点笔记
@@ -184,17 +193,3 @@ _Pragma("clang diagnostic pop")
 // 而且函数 __CFLogCString() 是 static 局部函数，保证 writev 线程安全的 CFLock_t 锁也是局部的，
 // 并不能被访问，而如果使用其它函数在控制台输出，就会不可避免出现与 NSLog 的输出内容互相嵌入的情况。
 //
-// XZLog 仅在 XZ_DEBUG 且 DEBUG 模式下才会输出日志到控制台。
-#ifndef XZLog
-#ifdef XZ_DEBUG
-#if DEBUG
-#define XZLog(format, ...) NSLog(@"%s(%d) \n%@", __PRETTY_FUNCTION__, __LINE__, [NSString stringWithFormat:format, ##__VA_ARGS__])
-#else  // => #if DEBUG
-#define XZLog(...)  do {} while (0)
-#endif // => #if DEBUG
-#else  // => #ifdef XZ_DEBUG
-#define XZLog(...)  do {} while (0)
-#endif // => #ifdef XZ_DEBUG
-#endif // => #ifndef XZLog
-
-

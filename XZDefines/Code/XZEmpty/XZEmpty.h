@@ -6,7 +6,7 @@
 //
 //
 // 【开发备忘】
-// 宏 `_Generic` 不能在其中同时加入子类和父类，无法使用。
+// 宏 `_Generic` 不能在其中同时加入子类和父类，否则无法使用。
 // #define isNonEmpty(value)                                               \
 // _Generic((value),                                                       \
 //     NSString            * : __xz_is_non_empty_imp_string__,             \

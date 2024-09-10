@@ -78,12 +78,12 @@ NSLog(@"%@", rgba(0xAA, 0xBB, 0xCC, 0xDD)); // UIExtendedSRGBColorSpace 0.666667
 
 - `XZ_CONST`、`XZ_READONLY`、`XZ_UNAVAILABLE`：标记仅 XZKit 内部可写或可用的 API 或函数或类。
 
-- `@weakize`、`@strongize`：变量的弱引用化和强引用化，支持多个参数。
+- `@enweak`、`@deweak`：变量的弱引用化和强引用化，支持多个参数。
 
 ```objc
-@weakize(self, foo, bar);
+@enweak(self, foo, bar);
 self.block = ^{
-    @strongize(self, foo, bar);
+    @deweak(self, foo, bar);
     // from now, the block will not own the self foo bar
 };
 ```
