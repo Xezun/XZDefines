@@ -27,24 +27,24 @@ pod 'XZDefines'
 
 ### 1、XZMacro - 高级宏定义
 
-- `xzmacro_keyize`：让宏变成类似于`@selector()`形式的关键字宏。
+- `xz_macro_keyize`：让宏变成类似于`@selector()`形式的关键字宏。
 
 ```objc
-// use the xzmacro_keyize to define a macro
-#define log(...) xzmacro_keyize NSLog(__VA_ARGS__)
+// use the xz_macro_keyize to define a macro
+#define log(...) xz_macro_keyize NSLog(__VA_ARGS__)
 
 // Use the macro like a objc keyword
 @log(@"foobar");
 ```
 
-- `xzmacro_paste(A, B)`： 直接将 A 和 B 拼接一起，主要用于设计高级宏。
+- `xz_macro_paste(A, B)`： 直接将 A 和 B 拼接一起，主要用于设计高级宏。
 
-- `xzmacro_args_map(MACRO, SEP, ...)`：遍历宏参数，并对每个参数逐个应用 `MACRO(index, param)` 宏，每次结果用 `SEP` 分割。
+- `xz_macro_args_map(MACRO, SEP, ...)`：遍历宏参数，并对每个参数逐个应用 `MACRO(index, param)` 宏，每次结果用 `SEP` 分割。
 
 ```objc
 // define the macro
 #define log(index, value)   NSLog(@"The value %ld is %@.", (long)index, value)
-#define logAll(...)         xzmacro_args_map(log, ;, __VA_ARGS__)
+#define logAll(...)         xz_macro_args_map(log, ;, __VA_ARGS__)
 
 // use the macro
 NSString *foo = @"foo";
@@ -56,15 +56,15 @@ logAll(foo, bar);
 // The value 1 is bar.
 ```
 
-- `XZATTR_OVERLOAD`：让函数可以重载。
+- `XZ_ATTR_OVERLOAD`：让函数可以重载。
 
 ```objc
-// 在 XZExtensions 中，有如下使用 RGB 创建颜色的便利函数，就使用了 XZATTR_OVERLOAD 宏。
-UIColor *rgba(UInt8 red, UInt8 green, UInt8 blue, UInt8 alpha) XZATTR_OVERLOAD {
+// 在 XZExtensions 中，有如下使用 RGB 创建颜色的便利函数，就使用了 XZ_ATTR_OVERLOAD 宏。
+UIColor *rgba(UInt8 red, UInt8 green, UInt8 blue, UInt8 alpha) XZ_ATTR_OVERLOAD {
     return [UIColor colorWithRed:red / 255.0 green:green / 255.0 blue:blue / 255.0 alpha:alpha / 255.0];
 }
 
-UIColor *rgba(UInt32 value) XZATTR_OVERLOAD {
+UIColor *rgba(UInt32 value) XZ_ATTR_OVERLOAD {
     return rgba(value >> 24, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
 }
 
@@ -72,18 +72,18 @@ NSLog(@"%@", rgba(0xAABBCCDD));             // UIExtendedSRGBColorSpace 0.666667
 NSLog(@"%@", rgba(0xAA, 0xBB, 0xCC, 0xDD)); // UIExtendedSRGBColorSpace 0.666667 0.733333 0.8 0.866667
 ```
 
-- `XZATTR_INTERNAL`：标记函数为内部函数。
+- `XZ_ATTR_INTERNAL`：标记函数为内部函数。
 
 - `XZ_DEPRECATED(message)`：标记API废弃。
 
 - `XZ_CONST`、`XZ_READONLY`、`XZ_UNAVAILABLE`：标记仅 XZKit 内部可写或可用的 API 或函数或类。
 
-- `@enweak`、`@deweak`：变量的弱引用化和强引用化，支持多个参数。
+- `enweak`、`deweak`：变量的弱引用化和强引用化，支持多个参数。
 
 ```objc
-@enweak(self, foo, bar);
+enweak(self, foo, bar);
 self.block = ^{
-    @deweak(self, foo, bar);
+    deweak(self, foo, bar);
     // from now, the block will not own the self foo bar
 };
 ```

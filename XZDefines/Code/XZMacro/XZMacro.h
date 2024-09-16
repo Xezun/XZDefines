@@ -7,112 +7,72 @@
 
 #import <Foundation/Foundation.h>
 
-/// 默认动画时长 0.35 秒。
-FOUNDATION_EXPORT NSTimeInterval const XZAnimationDuration;
-
 #if DEBUG
 // 空的 @autoreleasepool 不会被优化，只在 DEBUG 中使用。
-#define xzmacro_keyize autoreleasepool {}
+#define xz_macro_keyize autoreleasepool {}
 #else
 // 空的 @try 在 5.x 的编译器中会被优化掉，但是会产生一条警告，所以只在 release 模式中使用。
-#define xzmacro_keyize try {} @catch (...) {}
+#define xz_macro_keyize try {} @catch (...) {}
 #endif
 
 /// 连接两个参数
-#define xzmacro_paste(A, B) __NSX_PASTE__(A, B)
+#define xz_macro_paste(A, B) __NSX_PASTE__(A, B)
 
-/// 获取宏参数列表中的第 N 个参数。
-#define xzmacro_args_at(N, ...) xzmacro_paste(xzmacro_args_at, N)(__VA_ARGS__)
+#pragma mark - xz_macro_args_first
 
 /// 获取参数列表中的第一个个参数。
-#define xzmacro_args_first(...) xzmacro_args_first_imp(__VA_ARGS__, 0)
+#define xz_macro_args_first(...) xz_macro_args_first_imp(__VA_ARGS__, 0)
+/// 宏 xz_macro_args_first 的实现。
+#define xz_macro_args_first_imp(FIRST, ...) FIRST
+
+#pragma mark - xz_macro_args_at
+
+/// 获取宏参数列表中的第 N 个参数。
+/// 宏 xz_macro_args_at 的实现：
+/// 通过 xz_macro_paste 拼接 N 后，就变成下面对应的宏，
+/// 由于 0 到 N - 1 之间的参数已占位，这样参数列表 ... 就是 N 及之后的参数，
+/// 然后获取这个参数列表的第一个参数，即是原始参数列表的第 N 个参数。
+#define xz_macro_args_at(N, ...)                                        xz_macro_paste(xz_macro_args_at_imp_, N)(__VA_ARGS__)
+#define xz_macro_args_at_imp_0(...)                                     xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_1(_1, ...)                                 xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_2(_1, _2, ...)                             xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_3(_1, _2, _3, ...)                         xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_4(_1, _2, _3, _4, ...)                     xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_5(_1, _2, _3, _4, _5, ...)                 xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_6(_1, _2, _3, _4, _5, _6, ...)             xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_7(_1, _2, _3, _4, _5, _6, _7, ...)         xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_8(_1, _2, _3, _4, _5, _6, _7, _8, ...)     xz_macro_args_first(__VA_ARGS__)
+#define xz_macro_args_at_imp_9(_1, _2, _3, _4, _5, _6, _7, _8, _9, ...) xz_macro_args_first(__VA_ARGS__)
+
+#pragma mark - xz_macro_args_count
 
 /// 获取参数列表中参数的个数（最多10个）。
 /// 在参数列表后添加从 10 到 1 的数字，取得第 11 个元素，就是原始参数列表的个数。
-#define xzmacro_args_count(...) xzmacro_args_at(10, __VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+#define xz_macro_args_count(...) xz_macro_args_at(9, __VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+
+#pragma mark - xz_macro_args_map
 
 /// 遍历参数列表：对参数列表中的参数，逐个应用 MACRO(INDEX, ARG) 宏函数。
-#define xzmacro_args_map(MACRO, SEP, ...) xzmacro_args_map_imp(xzmacro_args_map_ctx, SEP, MACRO, __VA_ARGS__)
+#define xz_macro_args_map(MACRO, SEP, ...)                  xz_macro_args_map_imp(xz_macro_args_map_ctx, SEP, MACRO, __VA_ARGS__)
+#define xz_macro_args_map_imp(CONTEXT, SEP, MACRO, ...)     xz_macro_paste(xz_macro_args_map_imp_, xz_macro_args_count(__VA_ARGS__))(CONTEXT, SEP, MACRO, __VA_ARGS__)
+#define xz_macro_args_map_ctx(INDEX, MACRO, ARG)            MACRO(INDEX, ARG)
+#define xz_macro_args_map_imp_0(CONTEXT, SEP, MACRO)
+#define xz_macro_args_map_imp_1(CONTEXT, SEP, MACRO, _0)                                                                                                                    CONTEXT(0, MACRO, _0)
+#define xz_macro_args_map_imp_2(CONTEXT, SEP, MACRO, _0, _1)                                                         xz_macro_args_map_imp_1(CONTEXT, SEP, MACRO, _0)  SEP  CONTEXT(1, MACRO, _1)
+#define xz_macro_args_map_imp_3(CONTEXT, SEP, MACRO, _0, _1, _2)                                                 xz_macro_args_map_imp_2(CONTEXT, SEP, MACRO, _0, _1)  SEP  CONTEXT(2, MACRO, _2)
+#define xz_macro_args_map_imp_4(CONTEXT, SEP, MACRO, _0, _1, _2, _3)                                         xz_macro_args_map_imp_3(CONTEXT, SEP, MACRO, _0, _1, _2)  SEP  CONTEXT(3, MACRO, _3)
+#define xz_macro_args_map_imp_5(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4)                                 xz_macro_args_map_imp_4(CONTEXT, SEP, MACRO, _0, _1, _2, _3)  SEP  CONTEXT(4, MACRO, _4)
+#define xz_macro_args_map_imp_6(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5)                         xz_macro_args_map_imp_5(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4)  SEP  CONTEXT(5, MACRO, _5)
+#define xz_macro_args_map_imp_7(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6)                 xz_macro_args_map_imp_6(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5)  SEP  CONTEXT(6, MACRO, _6)
+#define xz_macro_args_map_imp_8(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7)         xz_macro_args_map_imp_7(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6)  SEP  CONTEXT(7, MACRO, _7)
+#define xz_macro_args_map_imp_9(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7, _8) xz_macro_args_map_imp_8(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7)  SEP  CONTEXT(8, MACRO, _8)
 
-/// 宏 xzmacro_args_at 的实现：
-/// 通过 xzmacro_paste 拼接 N 后，就变成下面对应的宏，
-/// 由于 0 到 N - 1 之间的参数已占位，这样参数列表 ... 就是 N 及之后的参数，
-/// 然后获取这个参数列表的第一个参数，即是原始参数列表的第 N 个参数。
-#define xzmacro_args_at0(...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at1(_0, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at2(_0, _1, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at3(_0, _1, _2, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at4(_0, _1, _2, _3, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at5(_0, _1, _2, _3, _4, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at6(_0, _1, _2, _3, _4, _5, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at7(_0, _1, _2, _3, _4, _5, _6, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at8(_0, _1, _2, _3, _4, _5, _6, _7, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at9(_0, _1, _2, _3, _4, _5, _6, _7, _8, ...) xzmacro_args_first(__VA_ARGS__)
-#define xzmacro_args_at10(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, ...) xzmacro_args_first(__VA_ARGS__)
-
-/// 宏 xzmacro_args_first 的实现。
-#define xzmacro_args_first_imp(FIRST, ...) FIRST
-
-/// 宏 xzmacro_args_map 的实现。
-/// 根据参数的个数，展开成相应的具体实现。
-#define xzmacro_args_map_imp(CONTEXT, SEP, MACRO, ...) \
-        xzmacro_paste(xzmacro_args_map_imp, xzmacro_args_count(__VA_ARGS__))(CONTEXT, SEP, MACRO, __VA_ARGS__)
-#define xzmacro_args_map_ctx(INDEX, MACRO, ARG) MACRO(INDEX, ARG)
-
-#define xzmacro_args_map_imp0(CONTEXT, SEP, MACRO)
-#define xzmacro_args_map_imp1(CONTEXT, SEP, MACRO, _0) CONTEXT(0, MACRO, _0)
-
-#define xzmacro_args_map_imp2(CONTEXT, SEP, MACRO, _0, _1) \
-    xzmacro_args_map_imp1(CONTEXT, SEP, MACRO, _0) \
-    SEP \
-    CONTEXT(1, MACRO, _1)
-
-#define xzmacro_args_map_imp3(CONTEXT, SEP, MACRO, _0, _1, _2) \
-    xzmacro_args_map_imp2(CONTEXT, SEP, MACRO, _0, _1) \
-    SEP \
-    CONTEXT(2, MACRO, _2)
-
-#define xzmacro_args_map_imp4(CONTEXT, SEP, MACRO, _0, _1, _2, _3) \
-    xzmacro_args_map_imp3(CONTEXT, SEP, MACRO, _0, _1, _2) \
-    SEP \
-    CONTEXT(3, MACRO, _3)
-
-#define xzmacro_args_map_imp5(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4) \
-    xzmacro_args_map_imp4(CONTEXT, SEP, MACRO, _0, _1, _2, _3) \
-    SEP \
-    CONTEXT(4, MACRO, _4)
-
-#define xzmacro_args_map_imp6(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5) \
-    xzmacro_args_map_imp5(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4) \
-    SEP \
-    CONTEXT(5, MACRO, _5)
-
-#define xzmacro_args_map_imp7(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6) \
-    xzmacro_args_map_imp6(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5) \
-    SEP \
-    CONTEXT(6, MACRO, _6)
-
-#define xzmacro_args_map_imp8(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7) \
-    xzmacro_args_map_imp7(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6) \
-    SEP \
-    CONTEXT(7, MACRO, _7)
-
-#define xzmacro_args_map_imp9(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7, _8) \
-    xzmacro_args_map_imp8(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7) \
-    SEP \
-    CONTEXT(8, MACRO, _8)
-
-#define xzmacro_args_map_imp10(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9) \
-    xzmacro_args_map_imp9(CONTEXT, SEP, MACRO, _0, _1, _2, _3, _4, _5, _6, _7, _8) \
-    SEP \
-    CONTEXT(9, MACRO, _9)
-
+#pragma mark - XZ_ATTR
 
 /// 函数重载
-#define XZATTR_OVERLOAD             __attribute__((overloadable))
+#define XZ_ATTR_OVERLOAD             __attribute__((overloadable))
 /// 函数外部不可见
-#define XZATTR_INTERNAL             __attribute__ ((visibility("hidden")))
-
+#define XZ_ATTR_INTERNAL             __attribute__ ((visibility("hidden")))
 /// 废弃声明
 #define XZ_DEPRECATED(message)      __deprecated_msg(message)
 
@@ -127,6 +87,7 @@ FOUNDATION_EXPORT NSTimeInterval const XZAnimationDuration;
 #define XZ_UNAVAILABLE      NS_UNAVAILABLE
 #endif
 
+#pragma mark - enweak & deweak
 
 /// 【enweak 弱引用编码  与 deweak 弱引用解码】
 /// 命名：由于 -ize 后缀，不能表明操作需配对使用，所以使用 en-、de- 表明操作必须配对使用的。
@@ -134,29 +95,31 @@ FOUNDATION_EXPORT NSTimeInterval const XZAnimationDuration;
 /// 原理：编码不改变变量自身的引用属性，只是根据变量名，先进行编码，生成弱引用变量，然后在 block 中，再进行解码，生成名称相同的强引用变量。
 /// 其它：编码不改变对象的引用计数；解码会增加引用计数，但可能为 nil 值。
 /// @code
-/// @enweak(self);             // 将变量进行 weak 编码
+/// enweak(self);              // 将变量进行 weak 编码
 /// dispatch_async(dispatch_get_main_queue(), ^{
-///     @deweak(self);         // 将变量进行 weak 解码
+///     deweak(self);          // 将变量进行 weak 解码
 ///     [self description];    // 此处的 self 为 strong，为 block 内局部变量，非捕获外部的变量
 /// });
 /// @endcode
 ///
 #ifndef enweak
-#define enweak(...) xzmacro_keyize  xzmacro_args_map(__enweak_imp__, , __VA_ARGS__)
-#define __enweak_imp__(INDEX, VAR) __typeof__(VAR) __weak const xzmacro_paste(__xz_weak_, VAR) = (VAR);
+#define enweak(...)                 xz_macro_args_map(__enweak_imp__, , __VA_ARGS__)
+#define __enweak_imp__(INDEX, VAR)  __typeof__(VAR) __weak const xz_macro_paste(__xz_weak_, VAR) = (VAR);
 #endif
 
+// 关于 typeof 的使用。
+// typeof 会同时获取变量的 Nullability 标记：如果变量已经被 _Nonnull 标记，解码时再添加 _Nullable 标记会发生语法错误。
+// typeof 会同时获取变量的 const 标记：编码后的弱引用变量，已经被 const 标记，解码时就不需要再添加 const 标记。
 #ifndef deweak
-#define deweak(...) xzmacro_keyize                      \
-_Pragma("clang diagnostic push")                        \
-_Pragma("clang diagnostic ignored \"-Wshadow\"")        \
-xzmacro_args_map(__deweak_imp__,, __VA_ARGS__)          \
+#define deweak(...)                                 \
+_Pragma("clang diagnostic push")                    \
+_Pragma("clang diagnostic ignored \"-Wshadow\"")    \
+xz_macro_args_map(__deweak_imp__,, __VA_ARGS__)     \
 _Pragma("clang diagnostic pop")
-// 这里的 typeof 使用编码后的弱引用变量，是因为：
-// typeof 会同时获取变量的 Nullability 标记，所以，如果变量已经被 _Nonnull 标记，解码时再添加 _Nullable 标记会发生语法错误；
-// typeof 会同时获取变量的 const 标记，而编码后的弱引用变量，已经被 const 标记，解码时就不需要再添加 const 标记。
-#define __deweak_imp__(INDEX, VAR) __typeof__(xzmacro_paste(__xz_weak_, VAR)) __strong _Nullable VAR = xzmacro_paste(__xz_weak_, VAR);
+#define __deweak_imp__(INDEX, VAR)  __typeof__(xz_macro_paste(__xz_weak_, VAR)) __strong _Nullable VAR = xz_macro_paste(__xz_weak_, VAR);
 #endif
+
+#pragma mark - XZLog
 
 // XZLog 仅在 XZ_DEBUG 且 DEBUG 模式下才会输出日志到控制台。
 #ifndef XZLog

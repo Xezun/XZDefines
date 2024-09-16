@@ -6,6 +6,9 @@
 //
 
 #import "XZUtils.h"
+#import <sys/time.h>
+
+NSTimeInterval const XZAnimationDuration = 0.35;
 
 NSComparisonResult XZVersionStringCompare(NSString *version1, NSString *version2) {
     if (![version1 isKindOfClass:NSString.class]) {
@@ -36,9 +39,6 @@ NSComparisonResult XZVersionStringCompare(NSString *version1, NSString *version2
     return NSOrderedAscending;
 }
 
-
-#import <sys/time.h>
-
 NSTimeInterval XZTimestamp(void) {
     struct timeval aTime;
     gettimeofday(&aTime, NULL);
@@ -46,3 +46,5 @@ NSTimeInterval XZTimestamp(void) {
     NSTimeInterval u_sec = aTime.tv_usec * 1.0e-6L;
     return (sec + u_sec);
 }
+
+
