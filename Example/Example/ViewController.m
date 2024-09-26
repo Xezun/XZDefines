@@ -11,16 +11,7 @@
 
 @interface TestView : UIView
 @end
-@implementation TestView
-- (void)setFrame:(CGRect)frame {
-    XZLog(@"%@", NSStringFromCGRect(frame));
-    [super setFrame:frame];
-}
-- (void)setBounds:(CGRect)bounds {
-    XZLog(@"%@", NSStringFromCGRect(bounds));
-    [super setBounds:bounds];
-}
-@end
+
 
 @interface ViewController ()
 
@@ -49,10 +40,24 @@
     [super viewDidAppear:animated];
     self.block(__PRETTY_FUNCTION__);
     
+    XZLog(@"测试 setFrame/setBounds 是否会互相调用");
     TestView *view = [[TestView alloc] initWithFrame:CGRectMake(0, 0, 100, 100)];
+    XZLog(@"setFrame");
     view.frame = CGRectMake(0, 0, 200, 200);
+    XZLog(@"setBounds");
     view.bounds = CGRectMake(0, 0, 300, 300);
-    XZLog(@"%@", view);
+    XZLog(@"view: %@", view);
 }
 
+@end
+
+@implementation TestView
+- (void)setFrame:(CGRect)frame {
+    XZLog(@"%@", NSStringFromCGRect(frame));
+    [super setFrame:frame];
+}
+- (void)setBounds:(CGRect)bounds {
+    XZLog(@"%@", NSStringFromCGRect(bounds));
+    [super setBounds:bounds];
+}
 @end
