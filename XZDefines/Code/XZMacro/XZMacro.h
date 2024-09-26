@@ -89,28 +89,41 @@
 
 #pragma mark - enweak & deweak
 
-/// 【enweak 弱引用编码  与 deweak 弱引用解码】
-/// 命名：由于 -ize 后缀，不能表明操作需配对使用，所以使用 en-、de- 表明操作必须配对使用的。
-/// 用途：避免 block 捕获外部变量造成循环引用：在 block 外，先对变量进行 enweak 编码；然后在 block 中，使用外部变量前，再对变量进行 deweak 解码。
-/// 原理：编码不改变变量自身的引用属性，只是根据变量名，先进行编码，生成弱引用变量，然后在 block 中，再进行解码，生成名称相同的强引用变量。
-/// 其它：编码不改变对象的引用计数；解码会增加引用计数，但可能为 nil 值。
+#ifndef enweak
+/// 弱引用编码：将变量进行弱引用编码，以准备在 block 中使用 `deweak` 解码后使用，避免循环引用。
+/// @discussion
+/// 由于 -ize 后缀 weakize/strongize 不能表明操作需配对使用，所以使用 en-、de- 表明操作必须配对使用的。
+/// @discussion
+/// 在 block 外，先对变量进行 enweak 编码；然后在 block 中，使用外部变量前，再对变量进行 deweak 解码。
+/// @discussion
+/// 编码不改变变量自身的引用属性，只是根据变量名，先进行编码，生成弱引用变量，然后在 block 中，再进行解码，生成名称相同的强引用变量。
+/// @discussion
+/// 编码不改变对象的引用计数。
 /// @code
 /// enweak(self);              // 将变量进行 weak 编码
 /// dispatch_async(dispatch_get_main_queue(), ^{
 ///     deweak(self);          // 将变量进行 weak 解码
-///     [self description];    // 此处的 self 为 strong，为 block 内局部变量，非捕获外部的变量
+///     if (!self) return;
+///     [self description];    // 此处的 self 为强引用，为 block 内局部变量，非捕获外部的变量
 /// });
 /// @endcode
-///
-#ifndef enweak
+/// @attention 必须搭配 `deweak` 一起使用。
+FOUNDATION_EXPORT void enweak(id var, ...);
+#undef enweak
 #define enweak(...)                 xz_macro_args_map(__enweak_imp__, , __VA_ARGS__)
 #define __enweak_imp__(INDEX, VAR)  __typeof__(VAR) __weak const xz_macro_paste(__xz_weak_, VAR) = (VAR);
 #endif
 
+#ifndef deweak
+/// 弱引用解码：将 block 外使用 `enweak` 弱引用编码的外部变量，解码为 block 内的局部强引用变量使用，变量名不变。
+/// @discussion 解码会增加引用计数，但可能为 nil 值，所以使用前应先判断。
+/// @seealso 请查看 `enweak` 获取更多说明。
+/// @attention 必须搭配 `enweak` 一起使用。
+FOUNDATION_EXPORT void deweak(id var, ...);
+#undef deweak
 // 关于 typeof 的使用。
 // typeof 会同时获取变量的 Nullability 标记：如果变量已经被 _Nonnull 标记，解码时再添加 _Nullable 标记会发生语法错误。
 // typeof 会同时获取变量的 const 标记：编码后的弱引用变量，已经被 const 标记，解码时就不需要再添加 const 标记。
-#ifndef deweak
 #define deweak(...)                                 \
 _Pragma("clang diagnostic push")                    \
 _Pragma("clang diagnostic ignored \"-Wshadow\"")    \
@@ -125,7 +138,7 @@ _Pragma("clang diagnostic pop")
 #ifndef XZLog
 #ifdef XZ_DEBUG
 #if DEBUG
-#define XZLog(format, ...) NSLog(@"%s(%d) \n%@", __PRETTY_FUNCTION__, __LINE__, [NSString stringWithFormat:format, ##__VA_ARGS__])
+#define XZLog(format, ...) NSLog(@"⌘ %s(%d) ⌘ %s ⌘ %@", __FILE_NAME__, __LINE__, __FUNCTION__, [NSString stringWithFormat:format, ##__VA_ARGS__])
 #else  // => #if DEBUG
 #define XZLog(...)  do {} while (0)
 #endif // => #if DEBUG
