@@ -70,11 +70,13 @@
 #pragma mark - XZ_ATTR
 
 /// 函数重载
-#define XZ_ATTR_OVERLOAD             __attribute__((overloadable))
+#define XZ_ATTR_OVERLOAD                            __attribute__((overloadable))
 /// 函数外部不可见
-#define XZ_ATTR_INTERNAL             __attribute__ ((visibility("hidden")))
+#define XZ_ATTR_INTERNAL                            __attribute__ ((visibility("hidden")))
 /// 废弃声明
-#define XZ_DEPRECATED(message)      __deprecated_msg(message)
+#define XZ_DEPRECATED(message, platforms, ...)      API_DEPRECATED(message, platforms, ##__VA_ARGS__)
+/// 废弃声明：重命名
+#define XZ_API_RENAMED(newName, platforms, ...)     API_DEPRECATED_WITH_REPLACEMENT(newName, platforms, ##__VA_ARGS__)
 
 /// 仅对外部生效的标记
 #ifdef XZ_FRAMEWORK
